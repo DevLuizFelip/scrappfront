@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import './App.css'; // Importa o nosso ficheiro CSS
 
 // --- Constantes ---
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001'; // URL do seu servidor backend
+const API_URL = 'http://localhost:3001'; // URL do seu servidor backend
 
 // --- Componentes Individuais ---
 
@@ -70,7 +70,7 @@ const ImageCard = ({ image, onImageClick, onToggleFavorite, onDownload }) => (
     </div>
 );
 
-// Grid de Imagens Virtualizado
+// Grid de Imagens Virtualizado (sem alterações)
 const VirtualizedImageGrid = ({ images, onImageClick, ...props }) => {
     const parentRef = useRef();
     const getColumnCount = () => {
@@ -117,7 +117,7 @@ const VirtualizedImageGrid = ({ images, onImageClick, ...props }) => {
 };
 
 
-// Modal de Visualização de Imagem
+// Modal de Visualização de Imagem (sem alterações)
 const ImageModal = ({ image, onClose, onPrev, onNext, onToggleFavorite, onDownload }) => {
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -145,7 +145,6 @@ const ImageModal = ({ image, onClose, onPrev, onNext, onToggleFavorite, onDownlo
                     </button>
                 </div>
             </div>
-            {/* CORREÇÃO APLICADA AQUI */}
             <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="modal-nav-btn prev">&#10094;</button>
             <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="modal-nav-btn next">&#10095;</button>
         </div>
@@ -259,8 +258,8 @@ export default function App() {
     const handleRemoveSource = async (sourceId) => {
         try {
             await fetch(`${API_URL}/api/sources/${sourceId}`, { method: 'DELETE' });
-            setSources(prev => prev.filter(source => source.id !== sourceId));
-            setAllImages(prev => prev.filter(image => image.sourceId !== sourceId));
+            // Recarrega os dados para garantir que o estado está sincronizado com o backend
+            fetchInitialData();
         } catch (error) {
             console.error("Erro ao remover fonte:", error);
         }
@@ -278,20 +277,58 @@ export default function App() {
         document.body.removeChild(a);
     };
     
+    // MELHORIA: Lógica de filtragem atualizada
     const favoriteImages = allImages.filter(img => img.isFavorited);
-    const imagesToShow = currentView === 'feed' ? allImages : favoriteImages;
+    const feedImages = allImages.filter(img => img.sourceId !== null); // Apenas imagens com fontes ativas
+
+    const imagesToDisplay = currentView === 'feed' ? feedImages : favoriteImages;
 
     const openModal = (index) => setModalIndex(index);
     const closeModal = () => setModalIndex(null);
 
     const showNextImage = () => {
-        if (modalIndex !== null) setModalIndex((modalIndex + 1) % imagesToShow.length);
+        if (modalIndex !== null) setModalIndex((modalIndex + 1) % imagesToDisplay.length);
     };
 
     const showPrevImage = () => {
-        if (modalIndex !== null) setModalIndex((modalIndex - 1 + imagesToShow.length) % imagesToShow.length);
+        if (modalIndex !== null) setModalIndex((modalIndex - 1 + imagesToDisplay.length) % imagesToDisplay.length);
     };
     
+    // MELHORIA: Lógica de renderização do conteúdo principal
+    const renderMainContent = () => {
+        if (isLoading) {
+            return <div className="loading-message"><p>A carregar...</p></div>;
+        }
+
+        // Estado de boas-vindas (apenas se não houver fontes)
+        if (sources.length === 0) {
+            return (
+                <div className="empty-message welcome-message">
+                    <h2>Bem-vindo ao seu Image Feed!</h2>
+                    <p>Para começar, adicione um link no botão '+' acima para buscar imagens.</p>
+                </div>
+            );
+        }
+
+        if (currentView === 'feed') {
+            if (feedImages.length === 0) {
+                return <div className="empty-message"><p>O seu feed está vazio. Adicione um novo link para ver mais imagens.</p></div>;
+            }
+            return (
+                <VirtualizedImageGrid images={feedImages} onImageClick={openModal} onToggleFavorite={handleToggleFavorite} onDownload={handleDownload} />
+            );
+        }
+
+        if (currentView === 'favorites') {
+            if (favoriteImages.length === 0) {
+                return <div className="empty-message"><p>Você ainda não favoritou nenhuma imagem.</p></div>;
+            }
+            return (
+                <VirtualizedImageGrid images={favoriteImages} onImageClick={openModal} onToggleFavorite={handleToggleFavorite} onDownload={handleDownload} />
+            );
+        }
+    };
+
     return (
         <div className="app">
             <Header onAddLinkClick={() => setAddLinkModalOpen(true)} currentView={currentView} setCurrentView={setCurrentView} />
@@ -300,27 +337,13 @@ export default function App() {
                 <SourcesList sources={sources} onRemoveSource={handleRemoveSource} />
                 
                 <main className="main-content">
-                    {isLoading ? (
-                        <div className="loading-message"><p>A carregar...</p></div>
-                    ) : allImages.length === 0 ? (
-                         <div className="empty-message welcome-message">
-                            <h2>Bem-vindo ao seu Image Feed!</h2>
-                            <p>Para começar, adicione um link no botão '+' acima para buscar imagens.</p>
-                        </div>
-                    ) : (
-                        <VirtualizedImageGrid
-                            images={imagesToShow}
-                            onImageClick={openModal}
-                            onToggleFavorite={handleToggleFavorite}
-                            onDownload={handleDownload}
-                        />
-                    )}
+                    {renderMainContent()}
                 </main>
             </div>
 
             {modalIndex !== null && (
                 <ImageModal 
-                    image={imagesToShow[modalIndex]}
+                    image={imagesToDisplay[modalIndex]}
                     onClose={closeModal}
                     onNext={showNextImage}
                     onPrev={showPrevImage}
