@@ -160,9 +160,9 @@ const ImageModal = ({ image, onClose, onPrev, onNext, onToggleFavorite, onDownlo
     );
 };
 
-// Modal para Adicionar Link ATUALIZADO
+// Modal para Adicionar Link
 const AddLinkModal = ({ isOpen, onClose, onFetch }) => {
-    const [scrapeType, setScrapeType] = useState('single'); // 'single' ou 'multi'
+    const [scrapeType, setScrapeType] = useState('single');
     const [url, setUrl] = useState('');
     const [urlPattern, setUrlPattern] = useState('');
     const [startPage, setStartPage] = useState('1');
@@ -194,12 +194,10 @@ const AddLinkModal = ({ isOpen, onClose, onFetch }) => {
                     <h2 className="add-link-modal-title">Adicionar Link</h2>
                     <button onClick={onClose} className="add-link-modal-close-btn">&times;</button>
                 </div>
-
                 <div className="scrape-type-selector">
                     <button className={scrapeType === 'single' ? 'active' : ''} onClick={() => setScrapeType('single')}>URL Único</button>
                     <button className={scrapeType === 'multi' ? 'active' : ''} onClick={() => setScrapeType('multi')}>Múltiplas Páginas</button>
                 </div>
-
                 {scrapeType === 'single' ? (
                     <div>
                         <p className="add-link-modal-p">Cole um link para buscar imagens.</p>
@@ -216,7 +214,6 @@ const AddLinkModal = ({ isOpen, onClose, onFetch }) => {
                         </div>
                     </div>
                 )}
-                
                 <button onClick={handleSubmit} disabled={isFetching} className="add-link-modal-submit">
                     {isFetching ? 'A Buscar...' : 'Buscar Imagens'}
                 </button>
@@ -273,7 +270,6 @@ export default function App() {
         }
     };
 
-    // Função de scrape ATUALIZADA para enviar o payload correto
     const handleScrape = async (payload) => {
         try {
             const response = await fetch(`${API_URL}/api/images/scrape`, {
@@ -281,6 +277,11 @@ export default function App() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+            if (response.status === 429) {
+                const errorData = await response.json();
+                alert(errorData.message);
+                return;
+            }
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido do servidor.' }));
                 throw new Error(errorData.message || 'Falha ao buscar imagens.');
@@ -295,6 +296,7 @@ export default function App() {
             }
         } catch (error) {
             console.error("Erro ao buscar imagens da URL:", error);
+            alert(error.message);
         }
     };
     
@@ -311,6 +313,11 @@ export default function App() {
         setSyncingSourceId(sourceId);
         try {
             const response = await fetch(`${API_URL}/api/sources/${sourceId}/sync`, { method: 'POST' });
+            if (response.status === 429) {
+                const errorData = await response.json();
+                alert(errorData.message);
+                return;
+            }
             if (!response.ok) {
                 throw new Error('Falha ao sincronizar.');
             }
@@ -318,7 +325,7 @@ export default function App() {
             if (newImages && newImages.length > 0) {
                 setAllImages(prev => [...newImages, ...prev]);
             }
-            console.log(`${newImages.length} novas imagens encontradas.`);
+            alert(newImages.length > 0 ? `${newImages.length} novas imagens adicionadas.` : 'Nenhuma imagem nova encontrada.');
         } catch (error) {
             console.error("Erro ao sincronizar fonte:", error);
         } finally {
