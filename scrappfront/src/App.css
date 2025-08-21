@@ -545,3 +545,50 @@ body {
     stroke-dashoffset: -124;
   }
 }
+
+/* --- NOVOS ESTILOS PARA O MODAL DE ADICIONAR LINK --- */
+.scrape-type-selector {
+  display: flex;
+  margin-bottom: 1rem;
+  background-color: #374151;
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+}
+
+.scrape-type-selector button {
+  flex: 1;
+  padding: 0.5rem;
+  border: none;
+  background-color: transparent;
+  color: #d1d5db;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.scrape-type-selector button.active {
+  background-color: #4b5563;
+  color: white;
+}
+
+.page-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.page-range-inputs input {
+  width: 100%;
+  background-color: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: white;
+  box-sizing: border-box;
+}
+
+.page-range-inputs span {
+  color: #9ca3af;
+}

@@ -160,17 +160,28 @@ const ImageModal = ({ image, onClose, onPrev, onNext, onToggleFavorite, onDownlo
     );
 };
 
-// Modal para Adicionar Link
+// Modal para Adicionar Link ATUALIZADO
 const AddLinkModal = ({ isOpen, onClose, onFetch }) => {
+    const [scrapeType, setScrapeType] = useState('single'); // 'single' ou 'multi'
     const [url, setUrl] = useState('');
+    const [urlPattern, setUrlPattern] = useState('');
+    const [startPage, setStartPage] = useState('1');
+    const [endPage, setEndPage] = useState('10');
     const [isFetching, setIsFetching] = useState(false);
 
     const handleSubmit = async () => {
-        if (!url.trim()) return;
         setIsFetching(true);
-        await onFetch(url);
+        const payload = scrapeType === 'single'
+            ? { url }
+            : { urlPattern, startPage, endPage };
+        
+        await onFetch(payload);
+
         setIsFetching(false);
         setUrl('');
+        setUrlPattern('');
+        setStartPage('1');
+        setEndPage('10');
         onClose();
     };
 
@@ -183,8 +194,29 @@ const AddLinkModal = ({ isOpen, onClose, onFetch }) => {
                     <h2 className="add-link-modal-title">Adicionar Link</h2>
                     <button onClick={onClose} className="add-link-modal-close-btn">&times;</button>
                 </div>
-                <p className="add-link-modal-p">Cole um link para buscar e adicionar novas imagens ao seu feed.</p>
-                <input value={url} onChange={e => setUrl(e.target.value)} type="url" placeholder="https://..." className="add-link-modal-input" />
+
+                <div className="scrape-type-selector">
+                    <button className={scrapeType === 'single' ? 'active' : ''} onClick={() => setScrapeType('single')}>URL Único</button>
+                    <button className={scrapeType === 'multi' ? 'active' : ''} onClick={() => setScrapeType('multi')}>Múltiplas Páginas</button>
+                </div>
+
+                {scrapeType === 'single' ? (
+                    <div>
+                        <p className="add-link-modal-p">Cole um link para buscar imagens.</p>
+                        <input value={url} onChange={e => setUrl(e.target.value)} type="url" placeholder="https://..." className="add-link-modal-input" />
+                    </div>
+                ) : (
+                    <div>
+                        <p className="add-link-modal-p">Insira um padrão de URL com `{'{page}'}` no lugar do número da página.</p>
+                        <input value={urlPattern} onChange={e => setUrlPattern(e.target.value)} type="text" placeholder="https://exemplo.com/imagens?p={page}" className="add-link-modal-input" />
+                        <div className="page-range-inputs">
+                            <input value={startPage} onChange={e => setStartPage(e.target.value)} type="number" min="1" placeholder="Início" />
+                            <span>até</span>
+                            <input value={endPage} onChange={e => setEndPage(e.target.value)} type="number" min={startPage} placeholder="Fim" />
+                        </div>
+                    </div>
+                )}
+                
                 <button onClick={handleSubmit} disabled={isFetching} className="add-link-modal-submit">
                     {isFetching ? 'A Buscar...' : 'Buscar Imagens'}
                 </button>
@@ -241,12 +273,13 @@ export default function App() {
         }
     };
 
-    const handleScrape = async (url) => {
+    // Função de scrape ATUALIZADA para enviar o payload correto
+    const handleScrape = async (payload) => {
         try {
             const response = await fetch(`${API_URL}/api/images/scrape`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url })
+                body: JSON.stringify(payload)
             });
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido do servidor.' }));
