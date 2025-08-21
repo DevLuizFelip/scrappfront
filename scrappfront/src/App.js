@@ -3,12 +3,11 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import './App.css'; // Importa o nosso ficheiro CSS
 
 // --- Constantes ---
-// CORREÇÃO DEFINITIVA: Usa a variável de ambiente para produção, ou localhost para desenvolvimento
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 // --- Componentes Individuais ---
 
-// Cabeçalho da Aplicação (sem alterações)
+// Cabeçalho da Aplicação
 const Header = ({ onAddLinkClick, currentView, setCurrentView }) => (
     <header className="app-header">
         <div className="container">
@@ -29,8 +28,8 @@ const Header = ({ onAddLinkClick, currentView, setCurrentView }) => (
     </header>
 );
 
-// Componente para listar as fontes (links) (sem alterações)
-const SourcesList = ({ sources, onRemoveSource }) => (
+// Componente para listar as fontes (links)
+const SourcesList = ({ sources, onRemoveSource, onSyncSource, syncingSourceId }) => (
     <aside className="sources-list-container">
         <h2 className="sources-list-title">Fontes Adicionadas</h2>
         {sources.length > 0 ? (
@@ -38,9 +37,18 @@ const SourcesList = ({ sources, onRemoveSource }) => (
                 {sources.map(source => (
                     <li key={source.id} className="source-item">
                         <span className="source-name">{source.name}</span>
-                        <button onClick={() => onRemoveSource(source.id)} className="source-remove-btn" title="Remover fonte">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
+                        <div className="source-item-buttons">
+                            <button onClick={() => onSyncSource(source.id)} className="source-sync-btn" title="Sincronizar fonte" disabled={syncingSourceId === source.id}>
+                                {syncingSourceId === source.id ? (
+                                    <svg className="spinner" viewBox="0 0 50 50"><circle className="path" cx="25" cy="25" r="20" fill="none" strokeWidth="5"></circle></svg>
+                                ) : (
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h5M20 20v-5h-5M4 4l16 16"></path></svg>
+                                )}
+                            </button>
+                            <button onClick={() => onRemoveSource(source.id)} className="source-remove-btn" title="Remover fonte">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
                     </li>
                 ))}
             </ul>
@@ -50,7 +58,7 @@ const SourcesList = ({ sources, onRemoveSource }) => (
     </aside>
 );
 
-// Card de uma Imagem no Grid (sem alterações)
+// Card de uma Imagem no Grid
 const ImageCard = ({ image, onImageClick, onToggleFavorite, onDownload }) => (
     <div className="image-card" onClick={onImageClick}>
         <img src={image.src} alt={image.alt} className="image-card-img" loading="lazy" />
@@ -71,7 +79,7 @@ const ImageCard = ({ image, onImageClick, onToggleFavorite, onDownload }) => (
     </div>
 );
 
-// Grid de Imagens Virtualizado (sem alterações)
+// Grid de Imagens Virtualizado
 const VirtualizedImageGrid = ({ images, onImageClick, ...props }) => {
     const parentRef = useRef();
     const getColumnCount = () => {
@@ -118,7 +126,7 @@ const VirtualizedImageGrid = ({ images, onImageClick, ...props }) => {
 };
 
 
-// Modal de Visualização de Imagem (sem alterações)
+// Modal de Visualização de Imagem
 const ImageModal = ({ image, onClose, onPrev, onNext, onToggleFavorite, onDownload }) => {
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -152,7 +160,7 @@ const ImageModal = ({ image, onClose, onPrev, onNext, onToggleFavorite, onDownlo
     );
 };
 
-// Modal para Adicionar Link (sem alterações)
+// Modal para Adicionar Link
 const AddLinkModal = ({ isOpen, onClose, onFetch }) => {
     const [url, setUrl] = useState('');
     const [isFetching, setIsFetching] = useState(false);
@@ -194,6 +202,7 @@ export default function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [modalIndex, setModalIndex] = useState(null);
     const [isAddLinkModalOpen, setAddLinkModalOpen] = useState(false);
+    const [syncingSourceId, setSyncingSourceId] = useState(null);
 
     const fetchInitialData = useCallback(async () => {
         setIsLoading(true);
@@ -259,10 +268,28 @@ export default function App() {
     const handleRemoveSource = async (sourceId) => {
         try {
             await fetch(`${API_URL}/api/sources/${sourceId}`, { method: 'DELETE' });
-            // Recarrega os dados para garantir que o estado está sincronizado com o backend
             fetchInitialData();
         } catch (error) {
             console.error("Erro ao remover fonte:", error);
+        }
+    };
+
+    const handleSyncSource = async (sourceId) => {
+        setSyncingSourceId(sourceId);
+        try {
+            const response = await fetch(`${API_URL}/api/sources/${sourceId}/sync`, { method: 'POST' });
+            if (!response.ok) {
+                throw new Error('Falha ao sincronizar.');
+            }
+            const { newImages } = await response.json();
+            if (newImages && newImages.length > 0) {
+                setAllImages(prev => [...newImages, ...prev]);
+            }
+            console.log(`${newImages.length} novas imagens encontradas.`);
+        } catch (error) {
+            console.error("Erro ao sincronizar fonte:", error);
+        } finally {
+            setSyncingSourceId(null);
         }
     };
 
@@ -278,9 +305,8 @@ export default function App() {
         document.body.removeChild(a);
     };
     
-    // MELHORIA: Lógica de filtragem atualizada
     const favoriteImages = allImages.filter(img => img.isFavorited);
-    const feedImages = allImages.filter(img => img.sourceId !== null); // Apenas imagens com fontes ativas
+    const feedImages = allImages.filter(img => img.sourceId !== null);
 
     const imagesToDisplay = currentView === 'feed' ? feedImages : favoriteImages;
 
@@ -295,13 +321,10 @@ export default function App() {
         if (modalIndex !== null) setModalIndex((modalIndex - 1 + imagesToDisplay.length) % imagesToDisplay.length);
     };
     
-    // MELHORIA: Lógica de renderização do conteúdo principal
     const renderMainContent = () => {
         if (isLoading) {
             return <div className="loading-message"><p>A carregar...</p></div>;
         }
-
-        // Estado de boas-vindas (apenas se não houver fontes)
         if (sources.length === 0) {
             return (
                 <div className="empty-message welcome-message">
@@ -310,7 +333,6 @@ export default function App() {
                 </div>
             );
         }
-
         if (currentView === 'feed') {
             if (feedImages.length === 0) {
                 return <div className="empty-message"><p>O seu feed está vazio. Adicione um novo link para ver mais imagens.</p></div>;
@@ -319,7 +341,6 @@ export default function App() {
                 <VirtualizedImageGrid images={feedImages} onImageClick={openModal} onToggleFavorite={handleToggleFavorite} onDownload={handleDownload} />
             );
         }
-
         if (currentView === 'favorites') {
             if (favoriteImages.length === 0) {
                 return <div className="empty-message"><p>Você ainda não favoritou nenhuma imagem.</p></div>;
@@ -335,7 +356,12 @@ export default function App() {
             <Header onAddLinkClick={() => setAddLinkModalOpen(true)} currentView={currentView} setCurrentView={setCurrentView} />
             
             <div className="app-body-container container">
-                <SourcesList sources={sources} onRemoveSource={handleRemoveSource} />
+                <SourcesList 
+                    sources={sources} 
+                    onRemoveSource={handleRemoveSource}
+                    onSyncSource={handleSyncSource}
+                    syncingSourceId={syncingSourceId}
+                />
                 
                 <main className="main-content">
                     {renderMainContent()}
