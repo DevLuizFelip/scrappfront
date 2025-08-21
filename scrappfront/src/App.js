@@ -3,7 +3,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import './App.css'; // Importa o nosso ficheiro CSS
 
 // --- Constantes ---
-const API_URL = 'http://localhost:3001'; // URL do seu servidor backend
+// CORREÇÃO DEFINITIVA: Usa a variável de ambiente para produção, ou localhost para desenvolvimento
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 // --- Componentes Individuais ---
 
